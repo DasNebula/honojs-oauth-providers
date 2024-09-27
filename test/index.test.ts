@@ -10,7 +10,7 @@ import { facebookAuth } from '../src/providers/facebook'
 import type { FacebookUser } from '../src/providers/facebook'
 import { githubAuth } from '../src/providers/github'
 import type { GitHubUser } from '../src/providers/github'
-import { googleAuth } from '../src/providers/google'
+import { googleAuth, GoogleTokenResponse, refreshToken as gRefreshToken } from '../src/providers/google'
 import type { GoogleUser } from '../src/providers/google'
 import { linkedinAuth } from '../src/providers/linkedin'
 import type { LinkedInUser } from '../src/providers/linkedin'
@@ -31,6 +31,8 @@ import {
   githubToken,
   githubUser,
   googleCodeError,
+  googleRefreshToken,
+  googleTokenError,
   googleUser,
   handlers,
   linkedInCodeError,
@@ -92,6 +94,22 @@ describe('OAuth Middleware', () => {
       token,
       grantedScopes,
     })
+  })
+  app.get('/google/refresh', async (c) => {
+    const response = await gRefreshToken(
+        client_id,
+        client_secret,
+        'MzJvY0QyNmNzWUtBU3BUelpOU1NLdXFOd05qdGROZFhtR3o3QkpPNHZpQ2xrOjE3MDEyOTU0ODkxMzM6MTowOnJ0OjE'
+    )
+    return c.json(response)
+  })
+  app.get('/google/refresh/new', async (c) => {
+    const response = await gRefreshToken(client_id, client_secret, 'new-token')
+    return c.json(response)
+  })
+  app.get('/google/refresh/error', async (c) => {
+    const response = await gRefreshToken(client_id, client_secret, 'bad-token')
+    return c.json(response)
   })
 
   // Facebook
@@ -390,7 +408,7 @@ describe('OAuth Middleware', () => {
       expect(res.status).toBe(401)
     })
 
-    it('Should throw error for invalide code', async () => {
+    it('Should throw error for invalid code', async () => {
       const res = await app.request('/google?code=9348ffdsd-sdsdbad-code')
 
       expect(res).not.toBeNull()
@@ -410,9 +428,42 @@ describe('OAuth Middleware', () => {
       expect(res.status).toBe(200)
       expect(response.user).toEqual(googleUser)
       expect(response.grantedScopes).toEqual(dummyToken.scope.split(' '))
-      expect(response.token).toEqual({
-        token: dummyToken.access_token,
-        expires_in: dummyToken.expires_in,
+      expect(response.token.token).toEqual(dummyToken.access_token)
+      expect(response.token.expires_in).toEqual(dummyToken.expires_in)
+      const createdDiff = Math.abs(
+          Date.now() - response.token.created!
+      )
+      expect(createdDiff).toBeLessThan(1000)
+    })
+
+    describe('Refresh Token', () => {
+      it('Should refresh token', async () => {
+        const res = await app.request('/google/refresh')
+        const response = (await res.json()) as GoogleTokenResponse & { created: number }
+
+        expect(res).not.toBeNull()
+        expect(response.access_token).toEqual(googleRefreshToken.access_token)
+        expect(response.expires_in).toEqual(googleRefreshToken.expires_in)
+        const createdDiff = Math.abs(
+            Date.now() - response.created
+        )
+        expect(createdDiff).toBeLessThan(1000)
+      })
+
+      it('Should capture new refresh token', async () => {
+        const res = await app.request('/google/refresh/new')
+        const response = (await res.json()) as GoogleTokenResponse & { created: number }
+
+        expect(res).not.toBeNull()
+        expect(response.refresh_token).toEqual('new-token')
+      })
+
+      it('Should throw error for invalid token', async () => {
+        const res = await app.request('/google/refresh/error')
+
+        expect(res).not.toBeNull()
+        expect(res.status).toBe(400)
+        expect(await res.text()).toBe(googleTokenError.error_description)
       })
     })
   })

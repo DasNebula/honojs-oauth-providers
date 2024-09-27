@@ -9,7 +9,6 @@ type GoogleAuthFlow = {
   client_secret: string
   redirect_uri: string
   code: string | undefined
-  token: Token | undefined
   scope: string[]
   state?: string
   login_hint?: string
@@ -23,6 +22,7 @@ export class AuthFlow {
   redirect_uri: string
   code: string | undefined
   token: Token | undefined
+  refresh_token: Token | undefined
   scope: string[]
   state: string | undefined
   login_hint: string | undefined
@@ -40,7 +40,6 @@ export class AuthFlow {
     scope,
     state,
     code,
-    token,
     access_type,
   }: GoogleAuthFlow) {
     this.client_id = client_id
@@ -51,7 +50,8 @@ export class AuthFlow {
     this.scope = scope
     this.state = state
     this.code = code
-    this.token = token
+    this.token = undefined
+    this.refresh_token = undefined
     this.user = undefined
     this.granted_scopes = undefined
     this.access_type = access_type
@@ -106,7 +106,15 @@ export class AuthFlow {
       this.token = {
         token: response.access_token,
         expires_in: response.expires_in,
+        created: Date.now(),
       }
+
+      if ('refresh_token' in response) {
+        this.refresh_token = {
+          token: response.refresh_token!,
+          expires_in: NaN,
+          created: Date.now(),
+        }      }
 
       this.granted_scopes = response.scope.split(' ')
     }

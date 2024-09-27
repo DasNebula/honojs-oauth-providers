@@ -1,5 +1,9 @@
 module.exports = {
-  ...require('../../jest.config.js'),
+  testMatch: ['**/(*.)+(spec|test).+(ts|tsx|js)'],
+  transform: {
+    '^.+\\.(ts|tsx)$': 'ts-jest',
+  },
+  testEnvironment: 'miniflare',
   testEnvironmentOptions: {
     customExportConditions: [''],
   },

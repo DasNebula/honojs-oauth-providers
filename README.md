@@ -4,10 +4,10 @@ Authentication middleware for [Hono](https://github.com/honojs/hono). This packa
 
 ## Installation
 
-You can install `hono` and `@hono/oauth-providers` via npm.
+You can install `hono` and `DasNebula/honojs-oauth-providers` via npm.
 
 ```txt
-npm i hono @hono/oauth-providers
+npm i hono DasNebula/honojs-oauth-providers
 ```
 
 ## Usage
@@ -22,7 +22,7 @@ app.use(
 )
 ```
 
-Also, there is two ways to use this middleware:
+Also, there are two ways to use this middleware:
 
 ```ts
 app.use(
@@ -36,11 +36,13 @@ app.use(
 
 app.get('/google', (c) => {
   const token = c.get('token')
+  const refreshToken = c.get('refresh-token')
   const grantedScopes = c.get('granted-scopes')
   const user = c.get('user-google')
 
   return c.json({
     token,
+    refreshToken,
     grantedScopes,
     user,
   })
@@ -61,11 +63,13 @@ app.get(
   }),
   (c) => {
     const token = c.get('token')
+    const refreshToken = c.get('refresh-token')
     const grantedScopes = c.get('granted-scopes')
     const user = c.get('user-google')
 
     return c.json({
       token,
+      refreshToken,
       grantedScopes,
       user,
     })
@@ -79,7 +83,7 @@ export default app
 
 ```ts
 import { Hono } from 'hono'
-import { googleAuth } from '@hono/oauth-providers/google'
+import { googleAuth } from 'honojs-oauth-providers/google'
 
 const app = new Hono()
 
@@ -127,7 +131,7 @@ export default app
 
 After the completion of the Google OAuth flow, essential data has been prepared for use in the subsequent steps that your app needs to take.
 
-`googleAuth` method provides 3 set key data:
+`googleAuth` method provides 4 sets of key data:
 
 - `token`:
   - Access token to make requests to the google API for retrieving user information and performing actions on their behalf.
@@ -136,6 +140,17 @@ After the completion of the Google OAuth flow, essential data has been prepared 
     {
       token: string
       expires_in: number
+      created: number
+    }
+    ```
+- `refresh-token`:
+  - You can refresh new tokens using this token, which is only available on the initial authorization.
+  - Type:
+    ```
+    {
+      token: string
+      expires_in: number
+      created: number
     }
     ```
 - `granted-scopes`:
@@ -162,14 +177,37 @@ To access this data, utilize the `c.get` method within the callback of the upcom
 ```ts
 app.get('/google', (c) => {
   const token = c.get('token')
+  const refreshToken = c.get('refresh-token')
   const grantedScopes = c.get('granted-scopes')
   const user = c.get('user-google')
 
   return c.json({
     token,
+    refreshToken,
     grantedScopes,
     user,
   })
+})
+```
+
+#### Refresh Token
+
+Once a user token expires, you can refresh their token without the need to prompt the user again for access. In such a scenario, you can utilize the `refreshToken` method, which accepts the `client_id`, `client_secret` and `refresh_token` as parameters.
+
+> [!NOTE]  
+> A `refresh_token` [may expire or otherwise fail](https://developers.google.com/identity/protocols/oauth2#expiration). Your code should anticipate the possibility that a granted refresh token might no longer work.
+
+```ts
+import { googleAuth, refreshToken } from 'honojs-oauth-providers/google'
+
+app.post('/google/refresh', async (c, next) => {
+  try {
+    await refreshToken(CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN)
+  } catch (err) {
+    // ...
+  }
+
+  // ...
 })
 ```
 
@@ -178,7 +216,7 @@ app.get('/google', (c) => {
 In certain use cases, you may need to programmatically revoke a user's access token. In such scenarios, you can utilize the `revokeToken` method, which accepts the `token` to be revoked as its unique parameter.
 
 ```ts
-import { googleAuth, revokeToken } from '@hono/oauth-providers/google'
+import { googleAuth, revokeToken } from 'honojs-oauth-providers/google'
 
 app.post('/remove-user', async (c, next) => {
   await revokeToken(USER_TOKEN)
@@ -191,7 +229,7 @@ app.post('/remove-user', async (c, next) => {
 
 ```ts
 import { Hono } from 'hono'
-import { facebookAuth } from '@hono/oauth-providers/facebook'
+import { facebookAuth } from 'honojs-oauth-providers/facebook'
 
 const app = new Hono()
 
@@ -403,7 +441,7 @@ After the completion of the Github Auth flow, essential data has been prepared f
 
 ```ts
 import { Hono } from 'hono'
-import { githubAuth } from '@hono/oauth-providers/github'
+import { githubAuth } from 'honojs-oauth-providers/github'
 
 const app = new Hono()
 
@@ -432,7 +470,7 @@ export default app
 
 ```ts
 import { Hono } from 'hono'
-import { githubAuth } from '@hono/oauth-providers/github'
+import { githubAuth } from 'honojs-oauth-providers/github'
 
 const app = new Hono()
 
@@ -536,7 +574,7 @@ After the completion of the LinkedIn Auth flow, essential data has been prepared
 
 ```ts
 import { Hono } from 'hono'
-import { linkedinAuth } from '@hono/oauth-providers/linkedin'
+import { linkedinAuth } from 'honojs-oauth-providers/linkedin'
 
 const app = new Hono()
 
@@ -566,7 +604,7 @@ export default app
 
 ```ts
 import { Hono } from 'hono'
-import { linkedinAuth } from '@hono/oauth-providers/linkedin'
+import { linkedinAuth } from 'honojs-oauth-providers/linkedin'
 
 const app = new Hono()
 
@@ -607,7 +645,7 @@ In certain use cases, you may need to programmatically revoke a user's access to
   - `string`.
 
 ```ts
-import { linkedinAuth, refreshToken } from '@hono/oauth-providers/linkedin'
+import { linkedinAuth, refreshToken } from 'honojs-oauth-providers/linkedin'
 
 app.post('linkedin/refresh-token', async (c, next) => {
   const token = await refreshToken(LINKEDIN_ID, LINKEDIN_SECRET, USER_REFRESH_TOKEN)
@@ -620,7 +658,7 @@ app.post('linkedin/refresh-token', async (c, next) => {
 
 ```ts
 import { Hono } from 'hono'
-import { xAuth } from '@hono/oauth-providers/x'
+import { xAuth } from 'honojs-oauth-providers/x'
 
 const app = new Hono()
 
@@ -734,7 +772,7 @@ app.get('/x', (c) => {
 
   return c.json({
     token,
-		refreshToken
+    refreshToken,
     grantedScopes,
     user,
   })
@@ -748,7 +786,7 @@ Once the user token expires you can refresh their token wihtout the need to prom
 > The `refresh_token` can be used once. Once the token is refreshed X gives you a new `refresh_token` along with the new token.
 
 ```ts
-import { xAuth, refreshToken } from '@hono/oauth-providers/x'
+import { xAuth, refreshToken } from 'honojs-oauth-providers/x'
 
 app.post('/x/refresh', async (c, next) => {
   await refreshToken(CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN)
@@ -764,7 +802,7 @@ In certain use cases, you may need to programmatically revoke a user's access to
 It returns a `boolean` to tell whether the token was revoked or not.
 
 ```ts
-import { xAuth, revokeToken } from '@hono/oauth-providers/x'
+import { xAuth, revokeToken } from 'honojs-oauth-providers/x'
 
 app.post('/remove-user', async (c, next) => {
   await revokeToken(CLIENT_ID, CLIENT_SECRET, USER_TOKEN)
@@ -777,7 +815,7 @@ app.post('/remove-user', async (c, next) => {
 
 ```ts
 import { Hono } from 'hono'
-import { discordAuth } from '@hono/oauth-providers/discord'
+import { discordAuth } from 'honojs-oauth-providers/discord'
 
 const app = new Hono()
 
@@ -870,7 +908,7 @@ app.get('/discord', (c) => {
 
   return c.json({
     token,
-		refreshToken
+    refreshToken,
     grantedScopes,
     user,
   })
@@ -885,7 +923,7 @@ Once the user token expires you can refresh their token wihtout the need to prom
 > The `refresh_token` can be used once. Once the token is refreshed Discord gives you a new `refresh_token` along with the new token.
 
 ```ts
-import { discordAuth, refreshToken } from '@hono/oauth-providers/discord'
+import { discordAuth, refreshToken } from 'honojs-oauth-providers/discord'
 
 app.post('/discord/refresh', async (c, next) => {
   const newTokens = await refreshToken(CLIENT_ID, CLIENT_SECRET, REFRESH_TOKEN)
@@ -908,7 +946,7 @@ In certain use cases, you may need to programmatically revoke a user's access to
 It returns a `boolean` to tell whether the token was revoked or not.
 
 ```ts
-import { discordAuth, revokeToken } from '@hono/oauth-providers/discord'
+import { discordAuth, revokeToken } from 'honojs-oauth-providers/discord'
 
 app.post('/remove-user', async (c, next) => {
   const revoked = await revokeToken(CLIENT_ID, CLIENT_SECRET, USER_TOKEN)

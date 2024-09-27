@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from 'hono'
 import { env } from 'hono/adapter'
-import { getCookie, setCookie } from 'hono/cookie'
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie'
 import { HTTPException } from 'hono/http-exception'
 
 import { getRandomState } from '../../utils/getRandomState'
@@ -29,10 +29,6 @@ export function googleAuth(options: {
       scope: options.scope,
       state: newState,
       code: c.req.query('code'),
-      token: {
-        token: c.req.query('access_token') as string,
-        expires_in: Number(c.req.query('expires-in')) as number,
-      },
     })
 
     // Redirect to login dialog
@@ -49,6 +45,12 @@ export function googleAuth(options: {
     // Avoid CSRF attack by checking state
     if (c.req.url.includes('?')) {
       const storedState = getCookie(c, 'state')
+      deleteCookie(c, 'state', {
+        maxAge: 60 * 10,
+        httpOnly: true,
+        path: '/',
+        // secure: true,
+      })
       if (c.req.query('state') !== storedState) {
         throw new HTTPException(401)
       }
@@ -59,6 +61,7 @@ export function googleAuth(options: {
 
     // Set return info
     c.set('token', auth.token)
+    c.set('refresh-token', auth.refresh_token)
     c.set('user-google', auth.user)
     c.set('granted-scopes', auth.granted_scopes)
 

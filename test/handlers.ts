@@ -19,9 +19,21 @@ export const handlers = [
     async ({
       request,
     }): Promise<StrictResponse<Partial<GoogleTokenResponse> | GoogleErrorResponse>> => {
-      const body = (await request.json()) as Promise<DefaultBodyType> & { code: string }
+      const body = (await request.json()) as Promise<DefaultBodyType> & { code: string, grant_type: string }
       if (body.code === dummyCode) {
         return HttpResponse.json(dummyToken)
+      }
+      if (body.grant_type === 'refresh_token') {
+        if ('refresh_token' in body) {
+          const { refresh_token } = body
+          if (refresh_token === 'bad-token') {
+            return HttpResponse.json(googleTokenError, { status: 400 })
+          } else if (refresh_token === 'new-token') {
+            return HttpResponse.json({ ...googleRefreshToken, ...{ refresh_token: 'new-token' }})
+          }
+          return HttpResponse.json(googleRefreshToken)
+        }
+        return HttpResponse.json(googleTokenError)
       }
       return HttpResponse.json(googleCodeError)
     }
@@ -192,6 +204,12 @@ const googleTokenInfo = {
   email: 'example@email.com',
   verified_email: true,
   access_type: 'user',
+}
+export const googleRefreshToken = {
+  access_token: 'isdFho34isdX6hd3vODOFFNubUEBosihjcXifjdC34dsdsd349Djs9cgSA2',
+  expires_in: 3600,
+  scope: 'openid email profile',
+  token_type: 'Bearer',
 }
 
 export const facebookUser = {
